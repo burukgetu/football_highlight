@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block meta %}
+<title>Football Highlights – Latest Goals & Goals</title>
+<meta name="description" content="Watch the latest football highlights from Premier League, La Liga, Serie A and more.">
+<meta property="og:title" content="Football Highlights">
+<meta property="og:description" content="Latest football match highlights, goals and full match replays.">
+<meta property="og:type" content="website">
+{% endblock %}
+
+{% block content %}
+<section class="highlights-grid">
+    {% for h in highlights %}
+    <article class="card">
+        <a href="/highlight/{{ h.slug }}">
+            {% if h.thumbnail_url %}
+            <div class="card-thumb">
+                <img src="{{ h.thumbnail_url }}" alt="{{ h.title }}" loading="lazy">
+                <span class="play-icon">▶</span>
+            </div>
+            {% else %}
+            <div class="card-thumb card-thumb--no-img">
+                <span class="play-icon">▶</span>
+            </div>
+            {% endif %}
+            <div class="card-body">
+                <h2 class="card-title">{{ h.title }}</h2>
+                <p class="card-excerpt">{{ h.excerpt[:120] }}{% if h.excerpt|length > 120 %}...{% endif %}</p>
+                <time class="card-date">{{ h.published_at.strftime("%d %b %Y") }}</time>
+            </div>
+        </a>
+    </article>
+    {% else %}
+    <p class="empty">No highlights yet. Check back soon.</p>
+    {% endfor %}
+</section>
+
+{% if page > 1 or has_next %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="/?page={{ page - 1 }}" class="btn">← Newer</a>
+    {% endif %}
+    {% if has_next %}
+    <a href="/?page={{ page + 1 }}" class="btn">Older →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

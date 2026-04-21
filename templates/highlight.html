@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block meta %}
+<title>{{ highlight.title }} – Football Highlights</title>
+<meta name="description" content="{{ highlight.excerpt }}">
+
+<!-- Open Graph (for Telegram link preview) -->
+<meta property="og:title" content="{{ highlight.title }}">
+<meta property="og:description" content="{{ highlight.excerpt }}">
+<meta property="og:type" content="video.other">
+<meta property="og:url" content="{{ base_url }}/highlight/{{ highlight.slug }}">
+{% if highlight.thumbnail_url %}
+<meta property="og:image" content="{{ highlight.thumbnail_url }}">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="720">
+{% endif %}
+{% if highlight.video_url %}
+<meta property="og:video" content="{{ highlight.video_url }}">
+<meta property="og:video:type" content="video/mp4">
+{% endif %}
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ highlight.title }}">
+<meta name="twitter:description" content="{{ highlight.excerpt }}">
+{% if highlight.thumbnail_url %}
+<meta name="twitter:image" content="{{ highlight.thumbnail_url }}">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<article class="highlight-page">
+    <h1 class="highlight-title">{{ highlight.title }}</h1>
+    <time class="highlight-date">{{ highlight.published_at.strftime("%d %B %Y") }}</time>
+
+    <div class="video-container">
+        {% if highlight.video_url %}
+        <!-- Streamable embed -->
+        <iframe
+            src="{{ highlight.video_url }}"
+            frameborder="0"
+            allowfullscreen
+            allow="autoplay; fullscreen"
+            loading="lazy"
+        ></iframe>
+        {% else %}
+        <!-- No video extracted yet — link back to original source -->
+        <div class="no-video">
+            {% if highlight.thumbnail_url %}
+            <img src="{{ highlight.thumbnail_url }}" alt="{{ highlight.title }}">
+            {% endif %}
+            <p>Video not available yet.</p>
+            <a href="{{ highlight.source_url }}" target="_blank" class="btn btn-source">
+                Watch on DasFootball ↗
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="highlight-description">
+        <p>{{ highlight.excerpt }}</p>
+    </div>
+
+    <a href="/" class="btn btn-back">← All Highlights</a>
+</article>
+{% endblock %}
