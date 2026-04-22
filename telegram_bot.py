@@ -63,8 +63,9 @@ def build_message(highlight: Highlight) -> str:
     message = (
         f"⚽ <b>{title}</b>\n\n"
         f"🏆 {league_type}\n\n"
-        f"{make_hashtag(kw1)}  {make_hashtag(kw2)}\n\n"
-        f"📅 {date_str}"
+        f"🔴{make_hashtag(kw1)} 🆚 {make_hashtag(kw2)} 🔵\n\n"
+        f"📅 {date_str}\n"
+        f".\n"
     )
     return message
 
