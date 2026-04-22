@@ -63,16 +63,18 @@ def build_message(highlight: Highlight) -> str:
     message = (
         f"⚽ <b>{title}</b>\n\n"
         f"🏆 {league_type}\n\n"
-        f"🔵 {make_hashtag(kw1)}  🆚  {make_hashtag(kw2)} 🔴\n\n"
-        f"📅 {date_str}\n"
-        f".\n"
+        f"{make_hashtag(kw1)}  {make_hashtag(kw2)}\n\n"
+        f"📅 {date_str}"
     )
     return message
 
 
 def build_keyboard(highlight: Highlight) -> InlineKeyboardMarkup:
     page_url = f"{BASE_URL}/highlight/{highlight.slug}"
-    keyboard = [[InlineKeyboardButton("▶ Watch Highlights", url=page_url)]]
+    # Fallback to source URL if BASE_URL not configured yet
+    if not BASE_URL or BASE_URL == "http://localhost:8000":
+        page_url = highlight.source_url
+    keyboard = [[InlineKeyboardButton("▶ Watch online", url=page_url)]]
     return InlineKeyboardMarkup(keyboard)
 
 
