@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 WP_API_URL = os.getenv("WP_API_URL", "https://dasfootball.com/wp-json/wp/v2/posts")
 POSTS_PER_PAGE = 10
 
+# Generic site-wide fallback image — not a real match thumbnail
+GENERIC_THUMBNAILS = {
+    "https://dasfootball.com/wp-content/uploads/2025/01/Dasfootball-Social.webp",
+}
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -121,21 +126,53 @@ async def fetch_post_content(post_url: str) -> str:
             return ""
 
 
+async def fetch_streamable_thumbnail(video_url: str) -> str:
+    """Fetch the actual video thumbnail from Streamable oEmbed API."""
+    video_id = video_url.rstrip("/").split("/")[-1]
+    oembed_url = f"https://api.streamable.com/oembed.json?url=https://streamable.com/{video_id}"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(oembed_url)
+            resp.raise_for_status()
+            thumb = resp.json().get("thumbnail_url", "")
+            if thumb.startswith("//"):
+                thumb = "https:" + thumb
+            return thumb
+    except Exception as e:
+        logger.warning(f"Could not fetch Streamable thumbnail for {video_id}: {e}")
+        return ""
+
+
 async def fetch_thumbnail(post_url: str) -> str:
     """
-    Fetch og:image from the post page HTML (static, no JS needed).
-    Much faster than Playwright.
+    Fetch og:image from the post page. Returns empty string if it's
+    the generic site fallback image.
     """
     async with httpx.AsyncClient(headers=HEADERS, timeout=15, follow_redirects=True) as client:
         try:
             resp = await client.get(post_url)
             resp.raise_for_status()
-            # Only need the <head> section, first 8KB is enough
             head_html = resp.text[:8000]
-            return extract_og_image(head_html)
+            url = extract_og_image(head_html)
+            if url in GENERIC_THUMBNAILS:
+                return ""
+            return url
         except Exception as e:
             logger.warning(f"Could not fetch thumbnail for {post_url}: {e}")
             return ""
+
+
+async def resolve_thumbnail(video_url: str, post_url: str) -> str:
+    """
+    Get the best available thumbnail:
+    1. Streamable oEmbed (actual match image) if video URL exists
+    2. og:image from post page as fallback
+    """
+    if video_url:
+        thumb = await fetch_streamable_thumbnail(video_url)
+        if thumb:
+            return thumb
+    return await fetch_thumbnail(post_url)
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +227,7 @@ async def scrape_and_store() -> int:
                     logger.info(f"Video URL updated for '{existing.title}'")
                     existing.video_url = video_url
                     updated = True
-                thumbnail_url = await fetch_thumbnail(post_url)
+                thumbnail_url = await resolve_thumbnail(video_url, post_url)
                 if thumbnail_url and existing.thumbnail_url != thumbnail_url:
                     logger.info(f"Thumbnail updated for '{existing.title}'")
                     existing.thumbnail_url = thumbnail_url
@@ -200,7 +237,7 @@ async def scrape_and_store() -> int:
                 continue
 
             # Fetch thumbnail for new highlight
-            thumbnail_url = await fetch_thumbnail(post_url)
+            thumbnail_url = await resolve_thumbnail(video_url, post_url)
 
             if not thumbnail_url:
                 logger.info(f"Skipping '{title}' — no thumbnail yet, will retry next cycle")
@@ -246,7 +283,15 @@ async def scrape_and_store() -> int:
                     logger.info(f"Video URL updated for '{highlight.title}'")
                     highlight.video_url = video_url
                     updated = True
-                thumbnail_url = extract_og_image(html[:8000])
+                video_url_for_thumb = video_url or highlight.video_url
+                og_thumb = extract_og_image(html[:8000])
+                if og_thumb in GENERIC_THUMBNAILS:
+                    og_thumb = ""
+                thumbnail_url = ""
+                if video_url_for_thumb:
+                    thumbnail_url = await fetch_streamable_thumbnail(video_url_for_thumb)
+                if not thumbnail_url:
+                    thumbnail_url = og_thumb
                 if thumbnail_url and highlight.thumbnail_url != thumbnail_url:
                     logger.info(f"Thumbnail updated for '{highlight.title}'")
                     highlight.thumbnail_url = thumbnail_url
