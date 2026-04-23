@@ -139,3 +139,55 @@ footer { text-align: center; padding: 20px; color: var(--muted); font-size: 0.8r
     .highlights-grid { grid-template-columns: 1fr; }
     .highlight-title { font-size: 1.2rem; }
 }
+
+/* ---- Video fullscreen button (mobile only) ---- */
+.fullscreen-btn {
+    display: none;
+}
+@media (max-width: 900px) {
+    .fullscreen-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        padding: 10px;
+        margin-top: 8px;
+        background: #1e1e1e;
+        color: var(--text);
+        border: 1px solid #333;
+        border-radius: var(--radius);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .fullscreen-btn:active { background: #2a2a2a; }
+}
+
+/* ---- Landscape on mobile: fill the full screen ---- */
+@media (max-width: 900px) and (orientation: landscape) {
+    .video-container {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        aspect-ratio: unset;
+        border-radius: 0;
+        margin: 0;
+        z-index: 9999;
+    }
+}
+
+/* ---- Fullscreen API state ---- */
+.video-container:fullscreen,
+.video-container:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: unset;
+    border-radius: 0;
+}
+.video-container:fullscreen iframe,
+.video-container:-webkit-full-screen iframe {
+    width: 100%;
+    height: 100%;
+}

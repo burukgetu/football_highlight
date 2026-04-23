@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
 
 import httpx
@@ -109,6 +109,18 @@ async def fetch_latest_posts(page: int = 1) -> list[dict]:
             return []
 
 
+async def fetch_post_content(post_url: str) -> str:
+    """Fetch rendered HTML of a post page to re-extract video URL."""
+    async with httpx.AsyncClient(headers=HEADERS, timeout=15, follow_redirects=True) as client:
+        try:
+            resp = await client.get(post_url)
+            resp.raise_for_status()
+            return resp.text
+        except Exception as e:
+            logger.warning(f"Could not fetch content for {post_url}: {e}")
+            return ""
+
+
 async def fetch_thumbnail(post_url: str) -> str:
     """
     Fetch og:image from the post page HTML (static, no JS needed).
@@ -149,13 +161,6 @@ async def scrape_and_store() -> int:
             if not source_id:
                 continue
 
-            # Skip if already stored
-            existing = await session.scalar(
-                select(Highlight).where(Highlight.source_id == source_id)
-            )
-            if existing:
-                continue
-
             # Title
             title_raw = post.get("title", {})
             title = title_raw.get("rendered", "") if isinstance(title_raw, dict) else str(title_raw)
@@ -170,16 +175,39 @@ async def scrape_and_store() -> int:
             slug = extract_slug(post_url)
             published_at = parse_date(post.get("date", ""))
 
-            # Extract video from post content (no browser needed!)
+            # Extract video from post content
             content_raw = post.get("content", {})
             content_html = content_raw.get("rendered", "") if isinstance(content_raw, dict) else str(content_raw)
             video_url = extract_streamable_id(content_html)
 
-            # Fetch thumbnail from og:image (simple HTTP, no JS)
+            # Update existing record if video URL changed or thumbnail missing
+            existing = await session.scalar(
+                select(Highlight).where(Highlight.source_id == source_id)
+            )
+            if existing:
+                updated = False
+                if video_url and existing.video_url != video_url:
+                    logger.info(f"Video URL updated for '{existing.title}'")
+                    existing.video_url = video_url
+                    updated = True
+                thumbnail_url = await fetch_thumbnail(post_url)
+                if thumbnail_url and existing.thumbnail_url != thumbnail_url:
+                    logger.info(f"Thumbnail updated for '{existing.title}'")
+                    existing.thumbnail_url = thumbnail_url
+                    updated = True
+                if updated:
+                    await session.commit()
+                continue
+
+            # Fetch thumbnail for new highlight
             thumbnail_url = await fetch_thumbnail(post_url)
 
+            if not thumbnail_url:
+                logger.info(f"Skipping '{title}' — no thumbnail yet, will retry next cycle")
+                continue
+
             logger.info(
-                f"New: '{title}' | video={'yes' if video_url else 'NO'} | thumb={'yes' if thumbnail_url else 'NO'}"
+                f"New: '{title}' | video={'yes' if video_url else 'NO'} | thumb=yes"
             )
 
             highlight = Highlight(
@@ -196,6 +224,37 @@ async def scrape_and_store() -> int:
             session.add(highlight)
             await session.commit()
             new_count += 1
+
+    # Re-check recent highlights (last 7 days) that weren't in the API page,
+    # to catch video URL changes or late-appearing videos.
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Highlight).where(Highlight.published_at >= cutoff)
+        )
+        recent = result.scalars().all()
+        # Only re-check ones not already handled in the API loop above
+        api_ids = {p.get("id") for p in posts}
+        for highlight in recent:
+            if highlight.source_id in api_ids:
+                continue
+            try:
+                html = await fetch_post_content(highlight.source_url)
+                video_url = extract_streamable_id(html)
+                updated = False
+                if video_url and highlight.video_url != video_url:
+                    logger.info(f"Video URL updated for '{highlight.title}'")
+                    highlight.video_url = video_url
+                    updated = True
+                thumbnail_url = extract_og_image(html[:8000])
+                if thumbnail_url and highlight.thumbnail_url != thumbnail_url:
+                    logger.info(f"Thumbnail updated for '{highlight.title}'")
+                    highlight.thumbnail_url = thumbnail_url
+                    updated = True
+                if updated:
+                    await session.commit()
+            except Exception as e:
+                logger.warning(f"Could not re-check '{highlight.title}': {e}")
 
     logger.info(f"Scrape done — {new_count} new highlights saved.")
     return new_count

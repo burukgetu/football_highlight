@@ -101,7 +101,7 @@ async def fetch_streamable_thumbnail(video_url: str) -> str:
         return ""
 
 
-async def send_highlight(highlight: Highlight) -> bool:
+async def send_highlight(highlight: Highlight, thumbnail: str = "") -> bool:
     """Send a single highlight to the Telegram channel."""
     if not BOT_TOKEN or not CHANNEL_ID:
         logger.error("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not set.")
@@ -110,11 +110,6 @@ async def send_highlight(highlight: Highlight) -> bool:
     bot = Bot(token=BOT_TOKEN)
     message_text = build_message(highlight)
     keyboard = build_keyboard(highlight)
-
-    # Get fresh Streamable thumbnail if we have a video
-    thumbnail = ""
-    if highlight.video_url:
-        thumbnail = await fetch_streamable_thumbnail(highlight.video_url)
 
     try:
         if thumbnail:
@@ -152,9 +147,17 @@ async def send_pending_highlights() -> int:
         pending = result.scalars().all()
 
         for highlight in pending:
-            success = await send_highlight(highlight)
+            # Fetch Streamable thumbnail before sending
+            thumbnail = ""
+            if highlight.video_url:
+                thumbnail = await fetch_streamable_thumbnail(highlight.video_url)
+
+            success = await send_highlight(highlight, thumbnail=thumbnail)
             if success:
                 highlight.sent_to_telegram = True
+                # Save the Streamable thumbnail so the site uses it too
+                if thumbnail:
+                    highlight.thumbnail_url = thumbnail
                 await session.commit()
                 sent_count += 1
 

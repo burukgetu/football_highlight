@@ -9,7 +9,17 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./highlights.db")
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+# Railway provides postgresql:// but async engine needs postgresql+asyncpg://
+connect_args = {}
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+if "postgresql+asyncpg://" in DATABASE_URL:
+    # asyncpg doesn't accept sslmode= — strip it and pass ssl via connect_args
+    if "sslmode=require" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("?sslmode=require", "").replace("&sslmode=require", "")
+        connect_args["ssl"] = True
+
+engine = create_async_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 

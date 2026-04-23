@@ -33,29 +33,48 @@
     <h1 class="highlight-title">{{ highlight.title }}</h1>
     <time class="highlight-date">{{ highlight.published_at.strftime("%d %B %Y") }}</time>
 
-    <div class="video-container">
-        {% if highlight.video_url %}
-        <!-- Streamable embed -->
-        <iframe
-            src="{{ highlight.video_url }}"
-            frameborder="0"
-            allowfullscreen
-            allow="autoplay; fullscreen"
-            loading="lazy"
-        ></iframe>
-        {% else %}
-        <!-- No video extracted yet — link back to original source -->
-        <div class="no-video">
-            {% if highlight.thumbnail_url %}
-            <img src="{{ highlight.thumbnail_url }}" alt="{{ highlight.title }}">
+    <div class="video-wrapper">
+        <div class="video-container" id="videoContainer">
+            {% if highlight.video_url %}
+            <iframe
+                src="{{ highlight.video_url }}"
+                frameborder="0"
+                allowfullscreen
+                allow="autoplay; fullscreen"
+                loading="lazy"
+            ></iframe>
+            {% else %}
+            <div class="no-video">
+                {% if highlight.thumbnail_url %}
+                <img src="{{ highlight.thumbnail_url }}" alt="{{ highlight.title }}">
+                {% endif %}
+                <p>Video not available yet.</p>
+                <a href="{{ highlight.source_url }}" target="_blank" class="btn btn-source">
+                    Watch on DasFootball ↗
+                </a>
+            </div>
             {% endif %}
-            <p>Video not available yet.</p>
-            <a href="{{ highlight.source_url }}" target="_blank" class="btn btn-source">
-                Watch on DasFootball ↗
-            </a>
         </div>
+        {% if highlight.video_url %}
+        <button class="fullscreen-btn" onclick="enterFullscreen()">
+            &#x26F6; Fullscreen
+        </button>
         {% endif %}
     </div>
+
+    <script>
+    function enterFullscreen() {
+        var el = document.getElementById('videoContainer');
+        if (el.requestFullscreen) {
+            el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function() {});
+        }
+    }
+    </script>
 
     <div class="highlight-description">
         <p>{{ highlight.excerpt }}</p>
