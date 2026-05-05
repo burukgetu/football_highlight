@@ -30,142 +30,56 @@
 
 {% block content %}
 <article class="highlight-page">
+    <h1 class="highlight-title">{{ highlight.title }}</h1>
+    <time class="highlight-date">{{ highlight.published_at.strftime("%d %B %Y") }}</time>
 
-    <div class="player-wrap">
+    <div class="video-wrapper">
         <div class="video-container" id="videoContainer">
             {% if highlight.video_url %}
-            <div class="video-inner" id="videoInner">
-                {% if direct_video_url %}
-                <video id="mainVideo" src="{{ direct_video_url }}" controls playsinline
-                    onerror="this.style.display='none'; document.getElementById('iframeFallback').style.display='block';">
-                </video>
-                <iframe id="iframeFallback" src="{{ highlight.video_url }}"
-                    frameborder="0" allowfullscreen allow="autoplay; fullscreen"
-                    style="display:none; position:absolute; inset:0; width:100%; height:100%;">
-                </iframe>
-                {% else %}
-                <iframe src="{{ highlight.video_url }}"
-                    frameborder="0" allowfullscreen allow="autoplay; fullscreen"
-                    style="position:absolute; inset:0; width:100%; height:100%;">
-                </iframe>
-                {% endif %}
-                <div class="seek-overlay" id="seekOverlay">
-                    <button class="seek-btn" onclick="seekVideo(-5)" aria-label="Rewind 5 seconds">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
-                        <span class="seek-label">-5s</span>
-                    </button>
-                    <button class="seek-btn" onclick="seekVideo(5)" aria-label="Forward 5 seconds">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.87"/></svg>
-                        <span class="seek-label">+5s</span>
-                    </button>
-                </div>
-            </div>
+            <iframe
+                src="{{ highlight.video_url }}"
+                frameborder="0"
+                allowfullscreen
+                allow="autoplay; fullscreen"
+                loading="lazy"
+            ></iframe>
             {% else %}
             <div class="no-video">
                 {% if highlight.thumbnail_url %}
                 <img src="{{ highlight.thumbnail_url }}" alt="{{ highlight.title }}">
                 {% endif %}
                 <p>Video not available yet.</p>
-                <a href="{{ highlight.source_url }}" target="_blank" rel="noopener" class="btn btn-source">Watch on DasFootball ↗</a>
+                <a href="{{ highlight.source_url }}" target="_blank" class="btn btn-source">
+                    Watch on DasFootball ↗
+                </a>
             </div>
             {% endif %}
         </div>
-
         {% if highlight.video_url %}
-        <div class="player-controls">
-            <button class="fullscreen-btn" onclick="toggleInnerFullscreen()" id="fsBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-                Fullscreen
-            </button>
-        </div>
+        <button class="fullscreen-btn" onclick="enterFullscreen()">
+            &#x26F6; Fullscreen
+        </button>
         {% endif %}
     </div>
 
-    {% if highlight.video_url %}
-    <button class="fs-exit-btn" id="fsExitBtn" onclick="toggleInnerFullscreen()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
-        Exit
-    </button>
-    {% endif %}
+    <script>
+    function enterFullscreen() {
+        var el = document.getElementById('videoContainer');
+        if (el.requestFullscreen) {
+            el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function() {});
+        }
+    }
+    </script>
 
-    <div class="details">
-        <h1 class="title">{{ highlight.title }}</h1>
-        <div class="league-list">
-            {% if ' - ' in highlight.title %}
-                {% set tag = highlight.title.split(' - ')[-1] %}
-            {% elif ' | ' in highlight.title %}
-                {% set tag = highlight.title.split(' | ')[-1] %}
-            {% else %}
-                {% set tag = '' %}
-            {% endif %}
-            {% if tag and tag|length < 50 %}
-            <span class="league">{{ tag }}</span>
-            {% endif %}
-        </div>
-        <p class="date">{{ highlight.published_at.strftime("%d/%m/%Y") }}</p>
-        <a href="/" class="btn btn-back">← All Highlights</a>
+    <div class="highlight-description">
+        <p>{{ highlight.excerpt }}</p>
     </div>
 
-
+    <a href="/" class="btn btn-back">← All Highlights</a>
 </article>
-
-<script>
-var _hideTimer = null;
-
-function toggleSeekButtons() {
-    var overlay = document.getElementById('seekOverlay');
-    if (!overlay) return;
-    var isVisible = overlay.classList.contains('visible');
-    if (isVisible) {
-        overlay.classList.remove('visible');
-        clearTimeout(_hideTimer);
-    } else {
-        overlay.classList.add('visible');
-        clearTimeout(_hideTimer);
-        _hideTimer = setTimeout(function() {
-            overlay.classList.remove('visible');
-        }, 3000);
-    }
-}
-
-function toggleInnerFullscreen() {
-    var container = document.getElementById('videoContainer');
-    var active = container.classList.toggle('inner-fullscreen');
-    document.body.classList.toggle('fs-active', active);
-}
-
-function seekVideo(seconds) {
-    var video = document.getElementById('mainVideo');
-    if (!video) return;
-    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
-    var overlay = document.getElementById('seekOverlay');
-    if (overlay) {
-        overlay.classList.add('visible');
-        clearTimeout(_hideTimer);
-        _hideTimer = setTimeout(function() {
-            overlay.classList.remove('visible');
-        }, 3000);
-    }
-}
-
-(function() {
-    var vc = document.getElementById('videoContainer');
-    if (!vc) return;
-    vc.addEventListener('click', function(e) {
-        if (!e.target.closest('.seek-btn')) toggleSeekButtons();
-    });
-    vc.addEventListener('touchstart', function(e) {
-        if (!e.target.closest('.seek-btn')) toggleSeekButtons();
-    }, { passive: true });
-
-    // Auto-show seek buttons briefly on load so user knows they're there
-    var overlay = document.getElementById('seekOverlay');
-    if (overlay) {
-        overlay.classList.add('visible');
-        _hideTimer = setTimeout(function() {
-            overlay.classList.remove('visible');
-        }, 3000);
-    }
-})();
-</script>
 {% endblock %}

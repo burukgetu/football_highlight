@@ -7,7 +7,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
@@ -29,14 +29,6 @@ SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_MINUTES", "30"))
 PAGE_SIZE = 12
 
 scheduler = AsyncIOScheduler()
-
-
-def streamable_cdn_url(embed_url: str) -> str:
-    """Build the direct CDN MP4 URL from a Streamable embed URL."""
-    if not embed_url or "streamable.com" not in embed_url:
-        return ""
-    video_id = embed_url.rstrip("/").split("/")[-1]
-    return f"https://cdn-cf-east.streamable.com/video/mp4/{video_id}.mp4"
 
 
 async def run_scrape_cycle():
@@ -107,15 +99,12 @@ async def highlight_page(slug: str, request: Request, db: AsyncSession = Depends
     if not highlight:
         raise HTTPException(status_code=404, detail="Highlight not found")
 
-    direct_video_url = streamable_cdn_url(highlight.video_url)
-
     return templates.TemplateResponse(
         "highlight.html",
         {
             "request": request,
             "highlight": highlight,
             "base_url": BASE_URL,
-            "direct_video_url": direct_video_url,
         },
     )
 
