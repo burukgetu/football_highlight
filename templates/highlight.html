@@ -109,7 +109,7 @@
             <a href="/highlight/{{ s.slug }}" class="suggestion-card">
                 <div class="suggestion-thumb">
                     {% if s.thumbnail_url %}
-                    <img src="{{ s.thumbnail_url }}" alt="{{ s.title }}" loading="lazy">
+                    <img src="{{ s.thumbnail_url }}" alt="{{ s.title }}" loading="lazy" onerror="this.style.display='none'">
                     {% endif %}
                     <span class="suggestion-play">&#9654;</span>
                 </div>
