@@ -13,9 +13,10 @@
 body {
     background: var(--dark);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Funnel Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -83,23 +84,34 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
 .card-date { font-size: 0.75rem; color: var(--green); }
 
 /* ---- Highlight page ---- */
-.highlight-page { max-width: 860px; margin: 0 auto; }
-.highlight-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
-.highlight-date { color: var(--green); font-size: 0.85rem; display: block; margin-bottom: 18px; }
+.highlight-page { max-width: 900px; margin: 0 auto; }
+
+.player-wrap {
+    width: 100%;
+    margin-bottom: 0;
+}
 
 .video-container {
+    position: relative;
     width: 100%;
     aspect-ratio: 16/9;
     background: #000;
     border-radius: var(--radius);
     overflow: hidden;
-    margin-bottom: 20px;
 }
 .video-container video,
 .video-container iframe {
     width: 100%; height: 100%;
     display: block;
     border: none;
+    object-fit: contain;
+}
+
+.player-controls {
+    padding: 10px 2px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .no-video {
@@ -108,7 +120,172 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
 }
 .no-video img { max-width: 100%; border-radius: 6px; }
 
-.highlight-description { color: var(--muted); margin-bottom: 24px; font-size: 0.9rem; }
+/* ---- Seek buttons overlay ---- */
+.seek-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10%;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.seek-overlay.visible {
+    opacity: 1;
+    pointer-events: none;
+}
+
+.seek-btn {
+    pointer-events: all;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: background 0.15s, transform 0.1s;
+    font-family: inherit;
+}
+.seek-btn:active { background: rgba(0,0,0,0.75); transform: scale(0.88); }
+.seek-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.5px; line-height: 1; }
+
+/* ---- Fullscreen button (mobile only) ---- */
+.fullscreen-btn {
+    display: none;
+}
+@media (max-width: 900px) {
+    .fullscreen-btn {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: none;
+        color: var(--text);
+        border: none;
+        padding: 4px 0;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.15s;
+        font-family: inherit;
+    }
+    .fullscreen-btn:hover { color: var(--green); }
+    .fullscreen-btn svg { flex-shrink: 0; }
+}
+
+/* ---- video-inner: wraps native video + seek overlay ---- */
+.video-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.video-inner video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+}
+
+/* ---- Inner fullscreen (CSS rotate — works in Telegram WebView) ---- */
+.video-container.inner-fullscreen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: unset;
+    background: #000;
+    z-index: 9999;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+/* Both the native video wrapper and the iframe rotate + fill together */
+.video-container.inner-fullscreen .video-inner,
+.video-container.inner-fullscreen iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vh;
+    height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+    border: none;
+}
+
+/* ---- Exit button (fixed overlay, rotated upright in landscape view) ---- */
+.fs-exit-btn {
+    display: none;
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10000;
+    align-items: center;
+    gap: 7px;
+    background: rgba(0, 0, 0, 0.72);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transform: rotate(90deg);
+    transform-origin: center center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    font-family: inherit;
+}
+body.fs-active .fs-exit-btn { display: flex; }
+
+/* ---- Details section (ported from reference, dark mode) ---- */
+.details {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding-top: 8px;
+}
+
+.details .title {
+    margin-top: 24px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text);
+}
+
+.league-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.league {
+    font-weight: 500;
+    font-size: 0.88rem;
+    background-color: rgb(243, 100, 100);
+    width: fit-content;
+    padding: 8px 14px;
+    border-radius: 10px;
+    color: rgb(25, 25, 25);
+}
+
+.date {
+    margin-top: 12px;
+    text-align: end;
+    font-weight: 300;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
 
 /* ---- Buttons ---- */
 .btn {
@@ -120,9 +297,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
     font-weight: 600;
     font-size: 0.9rem;
     transition: opacity 0.15s;
+    margin-top: 24px;
+    font-family: inherit;
 }
 .btn:hover { opacity: 0.85; }
-.btn-back { background: #333; color: var(--text); margin-top: 8px; }
+.btn-back { background: #252525; color: var(--text); border: 1px solid #333; }
+.btn-back:hover { background: #2e2e2e; opacity: 1; }
 .btn-source { background: #1a73e8; color: #fff; }
 
 /* ---- Pagination ---- */
@@ -137,57 +317,62 @@ footer { text-align: center; padding: 20px; color: var(--muted); font-size: 0.8r
 /* ---- Mobile ---- */
 @media (max-width: 480px) {
     .highlights-grid { grid-template-columns: 1fr; }
-    .highlight-title { font-size: 1.2rem; }
+    .details .title { font-size: 1.2rem; }
 }
 
-/* ---- Video fullscreen button (mobile only) ---- */
-.fullscreen-btn {
-    display: none;
-}
-@media (max-width: 900px) {
-    .fullscreen-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        width: 100%;
-        padding: 10px;
-        margin-top: 8px;
-        background: #1e1e1e;
-        color: var(--text);
-        border: 1px solid #333;
-        border-radius: var(--radius);
-        font-size: 0.9rem;
-        font-weight: 600;
-        cursor: pointer;
-    }
-    .fullscreen-btn:active { background: #2a2a2a; }
+/* ---- Suggestions ---- */
+.suggestions {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid #222;
 }
 
-/* ---- Landscape on mobile: fill the full screen ---- */
-@media (max-width: 900px) and (orientation: landscape) {
-    .video-container {
-        position: fixed;
-        inset: 0;
-        width: 100vw;
-        height: 100vh;
-        aspect-ratio: unset;
-        border-radius: 0;
-        margin: 0;
-        z-index: 9999;
-    }
+.suggestions-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
 }
 
-/* ---- Fullscreen API state ---- */
-.video-container:fullscreen,
-.video-container:-webkit-full-screen {
-    width: 100vw;
-    height: 100vh;
-    aspect-ratio: unset;
-    border-radius: 0;
+.suggestions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
 }
-.video-container:fullscreen iframe,
-.video-container:-webkit-full-screen iframe {
-    width: 100%;
-    height: 100%;
+
+.suggestion-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: block;
+    transition: transform 0.15s, box-shadow 0.15s;
 }
+.suggestion-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+
+.suggestion-thumb {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: #222;
+    overflow: hidden;
+}
+.suggestion-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.suggestion-play {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.suggestion-body { padding: 10px 12px; }
+.suggestion-title { font-size: 0.85rem; font-weight: 600; line-height: 1.4; margin-bottom: 4px; color: var(--text); }
+.suggestion-date { font-size: 0.75rem; color: var(--green); }
+
