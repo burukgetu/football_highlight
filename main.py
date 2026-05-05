@@ -7,12 +7,10 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
-
-import httpx
 
 from database import init_db, get_db, Highlight
 from scraper import scrape_and_store
@@ -33,23 +31,12 @@ PAGE_SIZE = 12
 scheduler = AsyncIOScheduler()
 
 
-async def get_streamable_mp4(embed_url: str) -> str:
-    """Fetch direct MP4 URL from Streamable API so we can use a native video element."""
+def streamable_cdn_url(embed_url: str) -> str:
+    """Build the direct CDN MP4 URL from a Streamable embed URL."""
     if not embed_url or "streamable.com" not in embed_url:
         return ""
     video_id = embed_url.rstrip("/").split("/")[-1]
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            resp = await client.get(f"https://api.streamable.com/videos/{video_id}")
-            resp.raise_for_status()
-            files = resp.json().get("files", {})
-            for key in ("mp4-mobile", "mp4"):
-                url = files.get(key, {}).get("url", "")
-                if url:
-                    return url if url.startswith("http") else "https:" + url
-    except Exception as e:
-        logger.warning(f"Streamable direct URL fetch failed for {video_id}: {e}")
-    return ""
+    return f"https://cdn-cf-east.streamable.com/video/mp4/{video_id}.mp4"
 
 
 async def run_scrape_cycle():
@@ -120,15 +107,7 @@ async def highlight_page(slug: str, request: Request, db: AsyncSession = Depends
     if not highlight:
         raise HTTPException(status_code=404, detail="Highlight not found")
 
-    suggestions_result = await db.execute(
-        select(Highlight)
-        .where(Highlight.slug != slug)
-        .order_by(func.random())
-        .limit(3)
-    )
-    suggestions = suggestions_result.scalars().all()
-
-    direct_video_url = await get_streamable_mp4(highlight.video_url)
+    direct_video_url = streamable_cdn_url(highlight.video_url)
 
     return templates.TemplateResponse(
         "highlight.html",
@@ -136,7 +115,6 @@ async def highlight_page(slug: str, request: Request, db: AsyncSession = Depends
             "request": request,
             "highlight": highlight,
             "base_url": BASE_URL,
-            "suggestions": suggestions,
             "direct_video_url": direct_video_url,
         },
     )

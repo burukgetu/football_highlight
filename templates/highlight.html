@@ -33,9 +33,22 @@
 
     <div class="player-wrap">
         <div class="video-container" id="videoContainer">
-            {% if direct_video_url %}
-            <div class="video-inner">
-                <video id="mainVideo" src="{{ direct_video_url }}" controls playsinline></video>
+            {% if highlight.video_url %}
+            <div class="video-inner" id="videoInner">
+                {% if direct_video_url %}
+                <video id="mainVideo" src="{{ direct_video_url }}" controls playsinline
+                    onerror="this.style.display='none'; document.getElementById('iframeFallback').style.display='block';">
+                </video>
+                <iframe id="iframeFallback" src="{{ highlight.video_url }}"
+                    frameborder="0" allowfullscreen allow="autoplay; fullscreen"
+                    style="display:none; position:absolute; inset:0; width:100%; height:100%;">
+                </iframe>
+                {% else %}
+                <iframe src="{{ highlight.video_url }}"
+                    frameborder="0" allowfullscreen allow="autoplay; fullscreen"
+                    style="position:absolute; inset:0; width:100%; height:100%;">
+                </iframe>
+                {% endif %}
                 <div class="seek-overlay" id="seekOverlay">
                     <button class="seek-btn" onclick="seekVideo(-5)" aria-label="Rewind 5 seconds">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
@@ -47,14 +60,6 @@
                     </button>
                 </div>
             </div>
-            {% elif highlight.video_url %}
-            <iframe
-                src="{{ highlight.video_url }}"
-                frameborder="0"
-                allowfullscreen
-                allow="autoplay; fullscreen"
-                loading="lazy"
-            ></iframe>
             {% else %}
             <div class="no-video">
                 {% if highlight.thumbnail_url %}
@@ -101,27 +106,6 @@
         <a href="/" class="btn btn-back">← All Highlights</a>
     </div>
 
-    {% if suggestions %}
-    <div class="suggestions">
-        <h2 class="suggestions-title">More Highlights</h2>
-        <div class="suggestions-grid">
-            {% for s in suggestions %}
-            <a href="/highlight/{{ s.slug }}" class="suggestion-card">
-                <div class="suggestion-thumb">
-                    {% if s.thumbnail_url %}
-                    <img src="{{ s.thumbnail_url }}" alt="{{ s.title }}" loading="lazy" onerror="this.style.display='none'">
-                    {% endif %}
-                    <span class="suggestion-play">&#9654;</span>
-                </div>
-                <div class="suggestion-body">
-                    <p class="suggestion-title">{{ s.title }}</p>
-                    <span class="suggestion-date">{{ s.published_at.strftime("%d %b %Y") }}</span>
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 
 </article>
 
@@ -173,6 +157,15 @@ function seekVideo(seconds) {
     vc.addEventListener('touchstart', function(e) {
         if (!e.target.closest('.seek-btn')) toggleSeekButtons();
     }, { passive: true });
+
+    // Auto-show seek buttons briefly on load so user knows they're there
+    var overlay = document.getElementById('seekOverlay');
+    if (overlay) {
+        overlay.classList.add('visible');
+        _hideTimer = setTimeout(function() {
+            overlay.classList.remove('visible');
+        }, 3000);
+    }
 })();
 </script>
 {% endblock %}
